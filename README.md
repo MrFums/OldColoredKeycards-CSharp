@@ -20,7 +20,7 @@ Everything can be turned off in the config.
 | Yellow | ₽2,300,000 |
 
 ## Install
-Extract the mod's zip into your SPT folder. Server only, players don't need anything.
+Extract the mod's zip into your SPT folder. Server only
 
 ## Settings
 `SPT_Runtime\user\mods\OldColoredKeycards\config.jsonc`. Each setting has a note. Restart the server after changing it. Delete the file to get the defaults back.
