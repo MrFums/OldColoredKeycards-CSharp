@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>OldColoredKeycards</RootNamespace>
+        <AssemblyName>OldColoredKeycards</AssemblyName>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <OutputType>Library</OutputType>
+        <OutputPath>bin\$(Configuration)\$(ProjectName)\$(AssemblyName)\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <!-- Don't put this PC's folder path into the built DLL. -->
+        <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="SPTarkov.Common" Version="4.1.0" />
+        <PackageReference Include="SPTarkov.DI" Version="4.1.0" />
+        <PackageReference Include="SPTarkov.Reflection" Version="4.1.0" />
+        <PackageReference Include="SPTarkov.Server.Core" Version="4.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="_References\**" />
+        <None Remove="_References\**" />
+        <Content Remove="_References\**" />
+        <!-- The old SPT 3.11 JS version, kept for reference only. -->
+        <Compile Remove="3.11 - js\**" />
+        <None Remove="3.11 - js\**" />
+        <Content Remove="3.11 - js\**" />
+        <!-- Tools/Calibrate makes Keycards/Data/old-keycard-spawns.json. It is its own program, not part of the mod. -->
+        <Compile Remove="Tools\**" />
+        <None Remove="Tools\**" />
+        <Content Remove="Tools\**" />
+        <!-- The copy for GitHub. Its .cs files are this project's, so they must not be built twice. -->
+        <Compile Remove="OldColoredKeycards Files\**" />
+        <None Remove="OldColoredKeycards Files\**" />
+        <Content Remove="OldColoredKeycards Files\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="config.jsonc" CopyToOutputDirectory="PreserveNewest" />
+        <!-- A copy inside the DLL, written back out if a user deletes config.jsonc. -->
+        <EmbeddedResource Include="config.jsonc" LogicalName="OldColoredKeycards.config.jsonc" />
+        <!-- The 0.14 keycard spawns. Built into the DLL so nobody edits them by accident. -->
+        <None Remove="Keycards\Data\old-keycard-spawns.json" />
+        <EmbeddedResource Include="Keycards\Data\old-keycard-spawns.json" LogicalName="OldColoredKeycards.old-keycard-spawns.json" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <ServerDir Condition=" '$(ServerDir)' == '' ">S:\SPT4.1_Docker\SPT_Runtime</ServerDir>
+        <ModOutputDir>$(ServerDir)\user\mods\$(AssemblyName)</ModOutputDir>
+        <Version>2.0.0</Version>
+    </PropertyGroup>
+
+    <Target Name="DeployToServer" AfterTargets="AfterBuild">
+        <!-- Live server: always update the dll, but never overwrite a config the user has edited. -->
+        <MakeDir Directories="$(ModOutputDir)"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModOutputDir)" />
+        <Copy SourceFiles="$(OutputPath)config.jsonc" DestinationFolder="$(ModOutputDir)"
+              Condition="!Exists('$(ModOutputDir)\config.jsonc')" />
+    </Target>
+</Project>

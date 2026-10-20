@@ -1,0 +1,43 @@
+// OldColoredKeycards settings
+// Lines that start with // are notes. The game does not read them.
+// After you change a setting, restart the server.
+// true = on. false = off.
+{
+  // ==========================================================================
+  //  USES - How many times each colored keycard can be used
+  // ==========================================================================
+  "uses": {
+    "infinite": true,                  // true = keycards never run out. false = use maxUses below.
+    "maxUses": 40                      // uses per keycard when infinite is false. Lowest: 1.
+  },
+
+  // ==========================================================================
+  //  PRICES - The Flea Market price of each keycard, in roubles
+  // ==========================================================================
+  // Offers on the Flea Market are made around these prices. Trader prices do not change.
+  // 0 = keep the normal price for that keycard.
+  "prices": {
+    "enabled": true,                   // false = keep the normal price for all keycards
+    "blue": 6100000,
+    "red": 11300000,
+    "green": 11500000,
+    "black": 1650000,
+    "violet": 4000000,
+    "yellow": 2300000
+  },
+
+  // ==========================================================================
+  //  SPAWNS - Where keycards spawn, and how often
+  // ==========================================================================
+  // Like in EFT 0.14 (before 0.15 made keycards more common). Keycards are rarer this way.
+  "spawns": {
+    "oldLooseLoot": true,              // true = keycards on the ground spawn in their 0.14 places, as often as in 0.14
+    "oldBotLoot": true                 // true = bosses and cultists carry keycards as often as in 0.14
+  },
+
+  // ==========================================================================
+  //  DEBUG
+  // ==========================================================================
+  // true = write every keycard change in the server log. Use this only to test.
+  "debugLogging": false
+}
