@@ -48,13 +48,13 @@
     </ItemGroup>
 
     <PropertyGroup>
-        <ServerDir Condition=" '$(ServerDir)' == '' ">S:\SPT4.1_Docker\SPT_Runtime</ServerDir>
         <ModOutputDir>$(ServerDir)\user\mods\$(AssemblyName)</ModOutputDir>
         <Version>2.0.0</Version>
     </PropertyGroup>
 
-    <Target Name="DeployToServer" AfterTargets="AfterBuild">
-        <!-- Live server: always update the dll, but never overwrite a config the user has edited. -->
+    <!-- Copies the mod into a server when one is given: dotnet build -p:ServerDir="<SPT folder>\SPT_Runtime" -->
+    <Target Name="DeployToServer" AfterTargets="AfterBuild" Condition=" '$(ServerDir)' != '' ">
+        <!-- Always update the dll, but never overwrite a config the user has edited. -->
         <MakeDir Directories="$(ModOutputDir)"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModOutputDir)" />
         <Copy SourceFiles="$(OutputPath)config.jsonc" DestinationFolder="$(ModOutputDir)"

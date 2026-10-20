@@ -4,13 +4,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-// Calibrates the restored 0.14 keycard spawn points for OldColoredKeycards.
-// args: oldDb (spt398 folder: <map>/looseLoot.json, bots/*.json, location.json)  newDb (SPT_Data/database)  newLocationJson  outDir
-//
-// Model of SPT's loose loot draw (identical in 3.9.8 LocationGenerator.ts and 4.1 LocationLootGenerator.cs):
-//   N = round(looseLootMultiplier * Normal(mean, std))  (negative draws re-rolled), minus spots with probability exactly 1;
-//   then N spots are drawn by weight (probability) without replacement; IsAlwaysSpawn / probability-1 spots always spawn.
-// Weighted draw without replacement == "exponential race": spot j has key Exp(1)/w_j, the N smallest keys win.
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
@@ -40,7 +33,6 @@ Parallel.ForEach(maps, new ParallelOptions { MaxDegreeOfParallelism = 4 }, map =
     double oldMult = oldLocCfg["looseLootMultiplier"]![map]?.GetValue<double>() ?? mult;
     var log = new StringBuilder();
 
-    // ---- 0.14: how many keycards each old spot produced per raid ----
     var old = LoadLoot(Path.Combine(oldDb, map, "looseLoot.json"), newFormat: false, Blacklist(oldLocCfg, map));
     var oldKeySpots = old.Spots.Where(s => s.Keycards.Count > 0).ToList();
     var oldPick = PickChances(old, oldMult, oldKeySpots, Array.Empty<double>(), rng).Watched;
@@ -54,7 +46,6 @@ Parallel.ForEach(maps, new ParallelOptions { MaxDegreeOfParallelism = 4 }, map =
         spotTargets.Add((s, total));
     }
 
-    // ---- 4.1 as it is now ----
     var now = LoadLoot(Path.Combine(newDb, "locations", map, "looseLoot.json"), newFormat: true, Blacklist(newLocCfg, map));
     var nowKeySpots = now.Spots.Where(s => s.Keycards.Count > 0).ToList();
     var nowPick = PickChances(now, mult, nowKeySpots, Array.Empty<double>(), rng).Watched;
@@ -62,7 +53,6 @@ Parallel.ForEach(maps, new ParallelOptions { MaxDegreeOfParallelism = 4 }, map =
     for (int i = 0; i < nowKeySpots.Count; i++)
         foreach (var (tpl, rp) in nowKeySpots[i].Keycards) current[tpl] += nowPick[i] * rp / nowKeySpots[i].TotalRp;
 
-    // ---- 4.1 with keycards removed, plus keycard-only old spots ----
     var cleaned = now with { Spots = now.Spots.Where(s => s.TotalRp - s.Keycards.Values.Sum() > 0 || s.Guaranteed || s.Always).ToList() };
     var weights = new double[spotTargets.Count];
     for (int iteration = 0; iteration < 3; iteration++)
@@ -71,7 +61,6 @@ Parallel.ForEach(maps, new ParallelOptions { MaxDegreeOfParallelism = 4 }, map =
         for (int i = 0; i < spotTargets.Count; i++) weights[i] = SolveWeight(thresholds, spotTargets[i].Total);
     }
 
-    // Independent check: fresh draws with the new spots in the pool.
     var check = PickChances(cleaned, mult, new List<Spot>(), weights, new Random(rng.Next()));
     var after = colours.ToDictionary(c => c.Id, _ => 0.0);
     var spawnpoints = new JsonArray();
@@ -84,7 +73,7 @@ Parallel.ForEach(maps, new ParallelOptions { MaxDegreeOfParallelism = 4 }, map =
         if (weights[i] <= 0) continue;
         var spawnpoint = BuildSpawnpoint(s, weights[i], rng);
         spawnpoints.Add(spawnpoint);
-        // The mod re-solves the weight against each server's real pool; this is what it aims for.
+
         targets[spawnpoint["template"]!["Id"]!.GetValue<string>()] = total;
         log.AppendLine($"  {s.TemplateId,-60} target {total:F5}/raid  weight {weights[i]:G4}  check {check.NewSpotPicks[i]:F5}");
     }
@@ -95,17 +84,15 @@ Parallel.ForEach(maps, new ParallelOptions { MaxDegreeOfParallelism = 4 }, map =
     report[map] = $"[{map}] {oldKeySpots.Count} old keycard spots, {nowKeySpots.Count} current keycard spots, mult {mult}\n" + log;
 });
 
-// ---- bots ----
 var botMap = new Dictionary<string, string?> {
     ["bossboar"] = "bossboar", ["bossbully"] = "bossbully", ["bossgluhar"] = "bossgluhar", ["bosskilla"] = "bosskilla",
     ["bosskojaniy"] = "bosskojaniy", ["bosssanitar"] = "bosssanitar", ["bosstagilla"] = "bosstagilla", ["bossknight"] = "bossknight",
     ["followerbigpipe"] = "followerbigpipe", ["followerbirdeye"] = "followerbirdeye", ["sectantpriest"] = "sectantpriest", ["sectantwarrior"] = "sectantwarrior",
-    // variants of 0.14 bosses use their base boss
+
     ["bosskillaagro"] = "bosskilla", ["bosstagillaagro"] = "bosstagilla", ["infectedtagilla"] = "bosstagilla",
-    // new since 0.14, nothing to restore: left as they are (Partisan uses the boss average below)
+
     ["sectantoni"] = null, ["sectantprizrak"] = null };
-// Bots with no 0.14 version that should still get 0.14-style boss odds: the average 0.14 pocket share
-// of these bosses, applied by the mod to every slot that holds keycards. BlackDiv bots come from a mod.
+
 var averageOf = new[] { "bossboar", "bossgluhar", "bosskilla", "bosstagilla", "bossknight" };
 var averageFor = new[] { "bosspartisan", "blackdivassault", "blackdivbreacher", "blackdivib", "blackdivlead", "blackdivsupport" };
 var slots = new[] { "Pockets", "Backpack", "TacticalVest", "SecuredContainer", "SpecialLoot" };
@@ -122,7 +109,7 @@ foreach (var (botType, source) in botMap)
         var newSlot = newItems[slot]?.AsObject(); var oldSlot = oldItems[slot]?.AsObject();
         bool newHas = newSlot != null && newSlot.Any(p => keycardIds.Contains(p.Key));
         bool oldHas = oldSlot != null && oldSlot.Any(p => keycardIds.Contains(p.Key));
-        // Only slots that carry keycards today: a variant boss must not gain keycards its 4.1 slot never had.
+
         if (!newHas) continue;
         double oldTotal = oldSlot?.Sum(p => p.Value!.GetValue<double>()) ?? 0;
         var shares = new JsonObject();
@@ -155,7 +142,6 @@ foreach (var (id, name) in colours)
 }
 botReport.AppendLine($"  boss average (for {string.Join(", ", averageFor)}): " + string.Join(" ", colours.Select(c => $"{c.Name} {bossAverage[c.Id]!.GetValue<double>():P4}")));
 
-// ---- outputs ----
 var data = new JsonObject
 {
     ["source"] = "SPT 3.9.8 database (EFT 0.14.9.30626), calibrated against SPT 4.1.6 loose loot",
@@ -184,8 +170,6 @@ Console.WriteLine("\nPER RAID, ALL COLOURS:   map              0.14 target   4.1
 foreach (var map in maps) { var (t, n, a) = mapRows[map]; Console.WriteLine($"  {map,-16} {t.Values.Sum(),12:F4} {n.Values.Sum(),9:F4} {a.Values.Sum(),12:F4}"); }
 Console.WriteLine("\nBOTS (share of slot pool, now -> 0.14):");
 Console.Write(botReport);
-
-// ================= helpers =================
 
 static HashSet<string> Blacklist(JsonNode cfg, string map) =>
     cfg["looseLootBlacklist"]?[map]?.AsArray().Select(x => x!.GetValue<string>()).ToHashSet() ?? new HashSet<string>();
@@ -224,7 +208,6 @@ Loot LoadLoot(string path, bool newFormat, HashSet<string> blacklist)
     return new Loot(sc["mean"]!.GetValue<double>(), sc["std"]!.GetValue<double>(), spots);
 }
 
-// Returns the chance each watched spot is picked, the threshold per sample, and the pick chance of extra keycard-only spots.
 (double[] Watched, double[] Thresholds, double[] NewSpotPicks) PickChances(Loot loot, double mult, List<Spot> watch, double[] extraWeights, Random rng)
 {
     var pool = loot.Spots.Where(s => !s.Blacklisted && !s.Always && !s.Guaranteed).ToList();
@@ -251,8 +234,7 @@ Loot LoadLoot(string path, bool newFormat, HashSet<string> blacklist)
             var s = watch[w];
             if (s.Blacklisted) continue;
             if (s.Always || s.Guaranteed) { watchedHits[w]++; continue; }
-            // The spot's exact pick chance at this threshold, not a 0/1 hit: rare spots would otherwise
-            // often score 0 by chance and be dropped.
+
             watchedHits[w] += PickAt(s.Prob, threshold);
         }
         for (int e = 0; e < extraWeights.Length; e++) if (extraIndex[e] >= 0) extraHits[e] += PickAt(extraWeights[e], threshold);
@@ -260,11 +242,9 @@ Loot LoadLoot(string path, bool newFormat, HashSet<string> blacklist)
     return (watchedHits.Select(h => h / Samples).ToArray(), thresholds, extraHits.Select(h => h / Samples).ToArray());
 }
 
-// Chance a spot of this weight is among the drawn ones, given the sample's threshold.
 static double PickAt(double weight, double threshold) =>
     threshold < 0 ? 0 : double.IsPositiveInfinity(threshold) ? 1 : 1 - Math.Exp(-weight * threshold);
 
-// Weight w so that the average over samples of P(Exp(1)/w <= T) = 1 - exp(-w T) equals the target.
 static double SolveWeight(double[] thresholds, double target)
 {
     if (target <= 0) return 0;
@@ -307,7 +287,6 @@ static double QuickSelect(double[] a, int k)
     }
 }
 
-// A keycard-only copy of a 0.14 spawn point, in SPT 4.1 looseLoot.json format.
 JsonNode BuildSpawnpoint(Spot s, double weight, Random rng)
 {
     var oldTemplate = s.Node["template"]!;
@@ -322,8 +301,7 @@ JsonNode BuildSpawnpoint(Spot s, double weight, Random rng)
     {
         var key = d!["composedKey"]!["key"]!.GetValue<string>();
         if (!s.KeycardKeys.TryGetValue(key, out var tpl)) continue;
-        // 0.14 item IDs aren't always valid 24-hex MongoIds (some are hashes like "1785089740"), which 4.1 rejects.
-        // Each item gets a new ID; the old key only links the item to its distribution entry.
+
         var id = string.Concat(Enumerable.Range(0, 12).Select(_ => rng.Next(256).ToString("x2")));
         root ??= id;
         items.Add(new JsonObject { ["_id"] = id, ["_tpl"] = tpl, ["composedKey"] = key, ["upd"] = new JsonObject { ["StackObjectsCount"] = 1 } });

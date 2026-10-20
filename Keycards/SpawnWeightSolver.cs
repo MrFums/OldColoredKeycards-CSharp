@@ -1,28 +1,15 @@
 namespace OldColoredKeycards.Keycards;
 
-// Works out the probability (weight) each restored 0.14 spot needs so it gives its 0.14 number of keycards per
-// raid on this server's actual pool, whatever other mods added to or replaced in it.
-//
-// SPT's loose loot draw (LocationLootGenerator.GenerateDynamicLoot): N = round(multiplier * Normal(mean, std))
-// minus the spots with probability 1; then N spots are drawn by weight without replacement. A weighted draw
-// without replacement picks the same spots as an "exponential race": each spot gets the key Exp(1) / weight and
-// the N smallest keys win. So in one simulated raid, with T the N-th smallest key, a spot of weight w is picked
-// with chance 1 - exp(-w * T). Averaging that over many simulated raids gives its pick chance.
-// Tools/Calibrate uses the same model.
 internal static class SpawnWeightSolver
 {
     private const int Samples = 2000;
     private const int Rounds = 3;
 
-    /// <param name="poolWeights">Probabilities of the spots SPT draws from (not probability 1, not always-spawn, not blacklisted).</param>
-    /// <param name="guaranteed">Spots with probability exactly 1. They take draws first.</param>
-    /// <param name="targets">Keycards per raid wanted from each restored spot.</param>
-    public static double[] Solve(double[] poolWeights, int guaranteed, double mean, double std, double multiplier, double[] targets, int seed)
+        public static double[] Solve(double[] poolWeights, int guaranteed, double mean, double std, double multiplier, double[] targets, int seed)
     {
         var random = new Random(seed);
         var weights = new double[targets.Length];
 
-        // The restored spots join the pool too, so solve, put them in, and solve again.
         for (var round = 0; round < Rounds; round++)
         {
             var thresholds = Thresholds(poolWeights, weights, guaranteed, mean, std, multiplier, random);
@@ -35,7 +22,6 @@ internal static class SpawnWeightSolver
         return weights;
     }
 
-    // The N-th smallest key in each simulated raid. -1 = nothing drawn, infinity = every spot drawn.
     private static double[] Thresholds(double[] poolWeights, double[] extraWeights, int guaranteed, double mean, double std, double multiplier, Random random)
     {
         var weights = poolWeights.Concat(extraWeights.Where(weight => weight > 0)).ToArray();
@@ -78,7 +64,6 @@ internal static class SpawnWeightSolver
         return total / thresholds.Length;
     }
 
-    // Pick chance only grows with weight, so a bisection finds it. 0 if the target is 0.
     private static double SolveWeight(double[] thresholds, double target)
     {
         if (target <= 0)
@@ -108,7 +93,6 @@ internal static class SpawnWeightSolver
         return (low + high) / 2;
     }
 
-    // RandomUtil.GetNormallyDistributedRandomNumber: negative draws are re-rolled, 100 tries, then uniform.
     private static double Normal(double mean, double std, Random random)
     {
         for (var attempt = 0; attempt <= 100; attempt++)
@@ -134,7 +118,6 @@ internal static class SpawnWeightSolver
         return 0.01 + random.NextDouble() * (mean * 2 - 0.01);
     }
 
-    // The k-th smallest value (0-based). Reorders the array.
     private static double QuickSelect(double[] values, int k, Random random)
     {
         int low = 0, high = values.Length - 1;

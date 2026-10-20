@@ -11,10 +11,8 @@ public class ConfigManager(
     ISptLogger<ConfigManager> logger,
     ModHelper modHelper)
 {
-    // .jsonc so editors know the // notes in it are allowed.
     private const string ConfigFile = "config.jsonc";
 
-    // The shipped config.jsonc, notes and all, built into the DLL (see OldColoredKeycards.csproj).
     private const string DefaultConfigResource = "OldColoredKeycards.config.jsonc";
 
     public ModConfig Mod { get; private set; } = new();
@@ -37,13 +35,18 @@ public class ConfigManager(
         WarnUnknown(Mod.Unknown, "");
         WarnUnknown(Mod.Uses.Unknown, "uses.");
         WarnUnknown(Mod.Prices.Unknown, "prices.");
+        WarnUnknown(Mod.Handbook.Unknown, "handbook.");
         WarnUnknown(Mod.Spawns.Unknown, "spawns.");
 
-        // The JS version quietly used 40 here too.
         if (Mod.Uses.MaxUses < 1)
         {
             logger.Warning($"[OldColoredKeycards] uses.maxUses must be 1 or more, using {KeycardUsesConfig.DefaultMaxUses}.");
             Mod.Uses.MaxUses = KeycardUsesConfig.DefaultMaxUses;
+        }
+
+        if (Mod.Handbook.Enabled && !Mod.Prices.Enabled)
+        {
+            logger.Warning("[OldColoredKeycards] handbook is on but prices is off: SPT will work out keycard flea prices from the 0.14 handbook prices, which makes them far too high. Turn prices on as well.");
         }
 
         foreach (var keycard in ColoredKeycards.All)
@@ -52,10 +55,14 @@ public class ConfigManager(
             {
                 logger.Warning($"[OldColoredKeycards] prices.{keycard.ConfigName} can't be below 0, keeping the normal {keycard.Name} price.");
             }
+
+            if (keycard.HandbookPrice(Mod.Handbook) < 0)
+            {
+                logger.Warning($"[OldColoredKeycards] handbook.{keycard.ConfigName} can't be below 0, keeping the normal {keycard.Name} handbook price.");
+            }
         }
     }
 
-    // A misspelt or moved setting would otherwise be ignored without a word and quietly use its default.
     private void WarnUnknown(Dictionary<string, System.Text.Json.JsonElement>? unknown, string section)
     {
         if (unknown is not { Count: > 0 })
@@ -67,8 +74,6 @@ public class ConfigManager(
         logger.Warning($"[OldColoredKeycards] Unknown setting(s) in {ConfigFile}, ignored: {names}. Check the spelling, or compare with the {ConfigFile} that ships with the mod.");
     }
 
-    // A deleted config.jsonc is written back from the copy in the DLL, so "delete it to reset" works
-    // and the user always has a file to edit. An existing file is never touched.
     private void RestoreConfigIfMissing()
     {
         var path = Path.Combine(ModPath, ConfigFile);
@@ -102,5 +107,20 @@ public class ConfigManager(
             logger.Warning($"[OldColoredKeycards] Could not read '{relativeFile}', using defaults. ({ex.Message})");
             return new T();
         }
+    }
+}
+
+internal static class DebugLog
+{
+    private static Action<string>? _write;
+
+    public static void Bind(ConfigManager configManager, Action<string> write)
+    {
+        _write = configManager.Mod.DebugLogging ? write : null;
+    }
+
+    public static void Write(Func<string> message)
+    {
+        _write?.Invoke("[OldColoredKeycards] " + message());
     }
 }

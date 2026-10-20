@@ -3,9 +3,10 @@
 Brings the colored Labs keycards back to how they were before 0.15:
 
 - **Infinite uses**, or pick your own number.
-- **Old Flea prices** from the end of 0.14.
-- **Old spawns**: keycards spawn where they did in 0.14, and as often (much rarer on Customs and Reserve).
+- **Old Flea prices** from the end of PvE 0.14.
+- **Old spawns**: keycards spawn where they did in 0.14.
 - **Old boss loot**: bosses and cultists carry them as often as in 0.14.
+- **Old handbook prices**: traders pay 0.14 prices for keycards. The Flea keeps the old Flea prices and traders pay what they did in 0.14.
 
 Everything can be turned off in the config.
 
@@ -19,7 +20,7 @@ Everything can be turned off in the config.
 | Yellow | ₽2,300,000 |
 
 ## Install
-Extract `OldColoredKeycards-2.0.0.zip` into your SPT folder. Server only, players don't need anything.
+Extract the mod's zip into your SPT folder. Server only, players don't need anything.
 
 ## Settings
 `SPT_Runtime\user\mods\OldColoredKeycards\config.jsonc`. Each setting has a note. Restart the server after changing it. Delete the file to get the defaults back.

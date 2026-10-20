@@ -27,6 +27,23 @@
   },
 
   // ==========================================================================
+  //  HANDBOOK - What traders pay for each keycard, in roubles
+  // ==========================================================================
+  // The 0.14 handbook prices: traders pay a lot more for keycards.
+  // The Flea still uses the PRICES above, but no keycard offer is ever
+  // cheaper than what a trader pays for it. Use this with PRICES on.
+  // 0 = keep the normal price for that keycard.
+  "handbook": {
+    "enabled": true,                   // false = keep the normal handbook prices
+    "blue": 9000000,
+    "red": 16500000,
+    "green": 17000000,
+    "black": 2500000,
+    "violet": 6000000,
+    "yellow": 3500000
+  },
+
+  // ==========================================================================
   //  SPAWNS - Where keycards spawn, and how often
   // ==========================================================================
   // Like in EFT 0.14 (before 0.15 made keycards more common). Keycards are rarer this way.
